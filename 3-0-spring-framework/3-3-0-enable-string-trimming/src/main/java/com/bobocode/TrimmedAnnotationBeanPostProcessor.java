@@ -6,8 +6,6 @@ import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
 import org.springframework.beans.BeansException;
 import org.springframework.beans.factory.config.BeanPostProcessor;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import java.lang.reflect.Method;
@@ -37,32 +35,26 @@ public class TrimmedAnnotationBeanPostProcessor implements BeanPostProcessor {
         if (containsParametersAnnotatedWithTrimmed(bean)) {
             beansToBeProxied.put(beanName, bean.getClass());
         }
-
-        return BeanPostProcessor.super.postProcessAfterInitialization(bean, beanName);
-
+        return BeanPostProcessor.super.postProcessBeforeInitialization(bean, beanName);
     }
 
     @Override
     public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
         var proxyToCreate = bean.getClass();
         if (proxyToCreate != null) {
-            return createProxyObject(proxyToCreate);
+            Enhancer enhancer = new Enhancer();
+            enhancer.setSuperclass(proxyToCreate);
+            enhancer.setCallback(provideTrimmingInterceptor());
+            return enhancer.create();
         }
         return bean;
     }
 
-    public Object createProxyObject(Class<?> beanType) {
-        var enhancer = new Enhancer();
-        enhancer.setSuperclass(beanType);
-
-        MethodInterceptor methodInterceptor = (Object var1, Method method, Object[] args, MethodProxy proxy) -> {
-            return proxy.invoke(var1, processParameters(method, args));
-
-        };
-        enhancer.setCallback(methodInterceptor);
-
-        return beanType.cast(enhancer.create());
+    private MethodInterceptor provideTrimmingInterceptor() {
+        return (beanInstance, method, args, methodProxy) ->
+                methodProxy.invokeSuper(beanInstance, processParameters(method, args));
     }
+
 
     private Object[] processParameters(Method method, Object[] args) {
         Parameter[] parameters = method.getParameters();
@@ -72,7 +64,6 @@ public class TrimmedAnnotationBeanPostProcessor implements BeanPostProcessor {
             }
         }
         return args;
-
     }
 
     private static Object getTrimArg(Object arg) {
@@ -80,7 +71,6 @@ public class TrimmedAnnotationBeanPostProcessor implements BeanPostProcessor {
             return StringUtils.hasLength(string) ? string.trim() : string;
         }
         return arg;
-
     }
 
     private boolean containsParametersAnnotatedWithTrimmed(Object bean) {
@@ -88,5 +78,4 @@ public class TrimmedAnnotationBeanPostProcessor implements BeanPostProcessor {
                 .flatMap(m -> Stream.of(m.getParameters()))
                 .anyMatch(p -> p.isAnnotationPresent(Trimmed.class));
     }
-
 }
