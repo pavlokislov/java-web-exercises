@@ -1,6 +1,16 @@
 package com.bobocode.web.controller;
 
 import com.bobocode.dao.AccountDao;
+import com.bobocode.dao.impl.InMemoryAccountDao;
+import com.bobocode.model.Account;
+import lombok.AllArgsConstructor;
+import org.checkerframework.checker.units.qual.A;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * <p>
@@ -16,6 +26,45 @@ import com.bobocode.dao.AccountDao;
  * todo: 7. Implement method that handles DELETE request with id as path variable removes an account by id
  * todo:    Configure HTTP response status code 204 - NO CONTENT
  */
-public class AccountRestController {
 
+@RestController
+@RequestMapping("/accounts")
+public class AccountRestController {
+    private final AccountDao accountDao;
+
+    public AccountRestController(AccountDao accountDao) {
+        this.accountDao = accountDao;
+    }
+
+
+    @GetMapping
+    public List<Account> getListOfAccounts() {
+        return accountDao.findAll();
+    }
+
+    @GetMapping("/{id}")
+    public Account getAccount(@PathVariable long id) {
+        return accountDao.findById(id);
+    }
+
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    public Account createAccount(@RequestBody Account account) {
+        return accountDao.save(account);
+    }
+
+    @PutMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void updateAccount(@PathVariable long id, @RequestBody Account account) {
+        if (!account.getId().equals(id)) {
+            throw new IllegalStateException();
+        }
+        accountDao.save(account);
+    }
+
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteAccount(@PathVariable long id) {
+        accountDao.remove(accountDao.findById(id));
+    }
 }
